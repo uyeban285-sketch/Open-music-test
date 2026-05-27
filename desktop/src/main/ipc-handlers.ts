@@ -6,8 +6,10 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { randomUUID } from 'crypto';
 import { getDb } from './database';
 
+type DB = ReturnType<typeof getDb>;
+
 export function registerIpcHandlers(): void {
-  const db = getDb();
+  const db: DB = getDb();
 
   // ─── Tracks ────────────────────────────────────────────────────────────────
 

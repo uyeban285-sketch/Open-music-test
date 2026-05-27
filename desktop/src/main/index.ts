@@ -57,7 +57,7 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.openmusic.app');
 
   // Инициализировать SQLite
-  initDatabase();
+  await initDatabase();
 
   // Зарегистрировать IPC хэндлеры
   registerIpcHandlers();
