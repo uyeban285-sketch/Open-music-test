@@ -34,9 +34,17 @@ model User {
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
   version      Int       @default(0)
 
-  privacySetting PrivacySetting?
-  refreshTokens  RefreshToken[]
-  auditLogs      AuditLog[]
+  privacySetting    PrivacySetting?
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  connectedServices ConnectedService[]
+  playlists         Playlist[]
+  likes             Like[]
+  listeningEvents   ListeningEvent[]
+  playbackSessions  PlaybackSession[]
+  deviceSessions    DeviceSession[]
+  notifications     Notification[]
+  syncJobs          SyncJob[]
 
   @@map("users")
 }
@@ -56,11 +64,11 @@ model PrivacySetting {
 }
 
 model RefreshToken {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  tokenHash String   @map("token_hash")
-  expiresAt DateTime @map("expires_at") @db.Timestamptz
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -87,15 +95,330 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ─── Integrations & Token Vault ──────────────────────────────────────────────
+
+enum ConnectionStatus {
+  Connected
+  Disconnected
+  Error
+  Token_Expired
+  Reauth_Required
+}
+
+model ConnectedService {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  connectorId    String           @map("connector_id")
+  status         ConnectionStatus @default(Connected)
+  lastError      Json?            @map("last_error")
+  connectedAt    DateTime         @default(now()) @map("connected_at") @db.Timestamptz
+  disconnectedAt DateTime?        @map("disconnected_at") @db.Timestamptz
+  settings       Json?
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalAccount ExternalAccount?
+  syncJobs        SyncJob[]
+
+  @@unique([userId, connectorId])
+  @@map("connected_services")
+}
+
+model ExternalAccount {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  connectedServiceId String   @unique @map("connected_service_id") @db.Uuid
+  accessTokenCt      Bytes    @map("access_token_ct")
+  refreshTokenCt     Bytes?   @map("refresh_token_ct")
+  dekId              String   @map("dek_id")
+  nonce              Bytes
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz
+  scope              String[] @default([])
+
+  connectedService ConnectedService @relation(fields: [connectedServiceId], references: [id], onDelete: Cascade)
+
+  @@map("external_accounts")
+}
+
+// ─── Media Catalog ───────────────────────────────────────────────────────────
+
+model Track {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  canonicalTitle  String   @map("canonical_title")
+  canonicalArtist String[] @map("canonical_artist")
+  canonicalAlbumId String? @map("canonical_album_id") @db.Uuid
+  isrc            String?
+  durationMs      Int      @map("duration_ms")
+  explicit        Boolean  @default(false)
+  isLive          Boolean  @default(false) @map("is_live")
+  genre           String[] @default([])
+  coverUrl        String?  @map("cover_url")
+  audioFeatures   Json?    @map("audio_features")
+  availability    Json?
+  source          String
+  embedding       Unsupported("vector(1024)")?
+  lastSyncedAt    DateTime? @map("last_synced_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  version         Int       @default(0)
+
+  canonicalAlbum   Album?             @relation(fields: [canonicalAlbumId], references: [id])
+  externalRefs     TrackExternalRef[]
+  playlistTracks   PlaylistTrack[]
+  likes            Like[]
+  listeningEvents  ListeningEvent[]
+
+  @@index([isrc])
+  @@map("tracks")
+}
+
+model Album {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  artistName  String   @map("artist_name")
+  coverUrl    String?  @map("cover_url")
+  releaseYear Int?     @map("release_year")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tracks Track[]
+
+  @@map("albums")
+}
+
+model Artist {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  imageUrl  String?  @map("image_url")
+  genres    String[] @default([])
+  embedding Unsupported("vector(1024)")?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("artists")
+}
+
+model TrackExternalRef {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trackId          String  @map("track_id") @db.Uuid
+  connectorId      String  @map("connector_id")
+  externalId       String  @map("external_id")
+  availability     String  @default("playable")
+  metadataSnapshot Json?   @map("metadata_snapshot")
+  matchDecisionId  String? @map("match_decision_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  track         Track          @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  matchDecision MatchDecision? @relation(fields: [matchDecisionId], references: [id])
+
+  @@unique([connectorId, externalId])
+  @@index([trackId])
+  @@map("track_external_refs")
+}
+
+enum MatchDecisionStatus {
+  auto_merged
+  probable_pending
+  confirmed
+  rejected
+  reverted
+}
+
+model MatchDecision {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leftExternalRefId  String              @map("left_external_ref_id") @db.Uuid
+  rightExternalRefId String              @map("right_external_ref_id") @db.Uuid
+  confidence         Decimal             @db.Decimal(3, 2)
+  signals            Json
+  status             MatchDecisionStatus
+  decidedBy          String              @map("decided_by")
+  userId             String?             @map("user_id") @db.Uuid
+  decidedAt          DateTime            @default(now()) @map("decided_at") @db.Timestamptz
+  revertedAt         DateTime?           @map("reverted_at") @db.Timestamptz
+
+  externalRefs TrackExternalRef[]
+
+  @@index([status])
+  @@index([decidedAt])
+  @@map("match_decisions")
+}
+
+// ─── Playlists ───────────────────────────────────────────────────────────────
+
+model Playlist {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId       String    @map("owner_user_id") @db.Uuid
+  name              String
+  description       String?
+  sourceConnectorId String?   @map("source_connector_id")
+  externalId        String?   @map("external_id")
+  isCollaborative   Boolean   @default(false) @map("is_collaborative")
+  isSmart           Boolean   @default(false) @map("is_smart")
+  smartConfig       Json?     @map("smart_config")
+  pinned            Boolean   @default(false)
+  lastSyncedAt      DateTime? @map("last_synced_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner  User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  tracks PlaylistTrack[]
+
+  @@index([ownerUserId])
+  @@map("playlists")
+}
+
+model PlaylistTrack {
+  playlistId   String    @map("playlist_id") @db.Uuid
+  trackId      String    @map("track_id") @db.Uuid
+  position     Int
+  addedByUserId String?  @map("added_by_user_id") @db.Uuid
+  addedAt      DateTime  @default(now()) @map("added_at") @db.Timestamptz
+  origin       Json?
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([playlistId, position])
+  @@map("playlist_tracks")
+}
+
+model Like {
+  userId  String   @map("user_id") @db.Uuid
+  trackId String   @map("track_id") @db.Uuid
+  likedAt DateTime @default(now()) @map("liked_at") @db.Timestamptz
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([userId, trackId])
+  @@map("likes")
+}
+
+// ─── Playback & Events ───────────────────────────────────────────────────────
+
+model PlaybackSession {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  deviceId       String   @map("device_id") @db.Uuid
+  currentTrackId String?  @map("current_track_id") @db.Uuid
+  positionMs     Int      @default(0) @map("position_ms")
+  queue          Json     @default("[]")
+  repeatMode     String   @default("off") @map("repeat_mode")
+  shuffle        Boolean  @default(false)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  revision       BigInt   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("playback_sessions")
+}
+
+model DeviceSession {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  deviceName String?  @map("device_name")
+  userAgent  String?  @map("user_agent")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_sessions")
+}
+
+model ListeningEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  trackId     String   @map("track_id") @db.Uuid
+  startedAt   DateTime @default(now()) @map("started_at") @db.Timestamptz
+  durationMs  Int      @map("duration_ms")
+  skipped     Boolean  @default(false)
+  context     Json?
+  connectorId String   @map("connector_id")
+  private     Boolean  @default(false)
+  deviceId    String   @map("device_id") @db.Uuid
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("listening_events")
+}
+
+// ─── Sync Jobs ───────────────────────────────────────────────────────────────
+
+enum SyncJobKind {
+  sync_full
+  sync_incremental
+  import_file
+  export_user_data
+  match_reconcile
+}
+
+enum SyncJobStatus {
+  queued
+  running
+  partial
+  succeeded
+  failed
+  cancelled
+}
+
+model SyncJob {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  connectorId  String        @map("connector_id")
+  connectedServiceId String? @map("connected_service_id") @db.Uuid
+  kind         SyncJobKind
+  status       SyncJobStatus @default(queued)
+  progress     Json?
+  startedAt    DateTime?     @map("started_at") @db.Timestamptz
+  finishedAt   DateTime?     @map("finished_at") @db.Timestamptz
+  errorSummary Json?         @map("error_summary")
+  result       Json?
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectedService ConnectedService? @relation(fields: [connectedServiceId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("sync_jobs")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+enum NotificationCategory {
+  new_release
+  rediscovery
+  continue_album
+  sync_error
+  match_pending
+  system
+}
+
+model Notification {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String               @map("user_id") @db.Uuid
+  category     NotificationCategory
+  payload      Json
+  seenAt       DateTime?            @map("seen_at") @db.Timestamptz
+  dispatchedAt DateTime             @default(now()) @map("dispatched_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dispatchedAt(sort: Desc)])
+  @@map("notifications")
+}
+
 // ─── Feature Flags ───────────────────────────────────────────────────────────
 
 model FeatureFlag {
-  key               String  @id
+  key               String   @id
   description       String
-  enabled           Boolean @default(false)
-  rolloutPercentage Int     @default(0) @map("rollout_percentage")
+  enabled           Boolean  @default(false)
+  rolloutPercentage Int      @default(0) @map("rollout_percentage")
   audience          Json?
-  updatedByAdminId  String? @map("updated_by_admin_id") @db.Uuid
+  updatedByAdminId  String?  @map("updated_by_admin_id") @db.Uuid
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   @@map("feature_flags")
