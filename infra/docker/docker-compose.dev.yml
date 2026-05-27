@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: om-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openmusic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openmusic_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-openmusic}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U openmusic']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: om-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  minio:
+    image: minio/minio:latest
+    container_name: om-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: om-mailhog
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: om-localstack
+    environment:
+      SERVICES: kms
+      DEFAULT_REGION: us-east-1
+    ports:
+      - '4566:4566'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4566/_localstack/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:

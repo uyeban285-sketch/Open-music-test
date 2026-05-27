@@ -1,0 +1,7 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'packages/connectors/*'
+  - 'packages/ui'
+  - 'services/ai/*'
+  - 'infra/docker'

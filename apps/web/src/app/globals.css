@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default palette (dark theme) */
+  --palette-bg: 10 10 14;
+  --palette-fg: 250 250 250;
+  --palette-accent: 139 92 246;
+  --palette-surface: 24 24 28;
+  --palette-muted: 120 120 130;
+
+  /* Motion tokens */
+  --motion-quick: 100ms;
+  --motion-normal: 250ms;
+  --motion-slow: 400ms;
+
+  /* Density tokens */
+  --density-compact-gap: 0.25rem;
+  --density-normal-gap: 0.5rem;
+}
+
+@layer base {
+  body {
+    background-color: rgb(var(--palette-bg));
+    color: rgb(var(--palette-fg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-quick: 0ms;
+    --motion-normal: 0ms;
+    --motion-slow: 0ms;
+  }
+}

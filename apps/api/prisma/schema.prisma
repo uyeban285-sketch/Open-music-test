@@ -1,0 +1,102 @@
+// Prisma Schema for Open Music API
+// Database: PostgreSQL 16 with extensions: pgcrypto, citext, pg_trgm, vector
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext, pg_trgm, vector]
+}
+
+// ─── User & Auth ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  listener
+  enthusiast
+  power_user
+  admin
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String    @unique @db.Citext
+  passwordHash String?   @map("password_hash")
+  ssoProvider  String?   @map("sso_provider")
+  role         UserRole  @default(listener)
+  mfaEnabled   Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret    String?   @map("mfa_secret")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  version      Int       @default(0)
+
+  privacySetting PrivacySetting?
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model PrivacySetting {
+  userId                  String   @id @map("user_id") @db.Uuid
+  useHistoryForReco       Boolean  @default(true) @map("use_history_for_reco")
+  useCloudAi              Boolean  @default(true) @map("use_cloud_ai")
+  productAnalyticsEnabled Boolean  @default(true) @map("product_analytics_enabled")
+  marketingNotifications  Boolean  @default(false) @map("marketing_notifications")
+  disabledSignalSources   String[] @default([]) @map("disabled_signal_sources")
+  privateModeDefault      Boolean  @default(false) @map("private_mode_default")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("privacy_settings")
+}
+
+model RefreshToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  resource   String
+  resourceId String?  @map("resource_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ─── Feature Flags ───────────────────────────────────────────────────────────
+
+model FeatureFlag {
+  key               String  @id
+  description       String
+  enabled           Boolean @default(false)
+  rolloutPercentage Int     @default(0) @map("rollout_percentage")
+  audience          Json?
+  updatedByAdminId  String? @map("updated_by_admin_id") @db.Uuid
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("feature_flags")
+}
