@@ -53,7 +53,7 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.openmusic.app');
 
   // Инициализировать SQLite
