@@ -2,7 +2,7 @@
   "name": "open-music",
   "version": "0.1.0",
   "description": "Open Music — мультисервисный музыкальный агрегатор с AI-рекомендациями",
-  "main": "src/main/index.js",
+  "main": "out/main/index.js",
   "author": "Open Music Team",
   "license": "MIT",
   "scripts": {
@@ -70,9 +70,8 @@
       "icon": "resources/icon.png"
     },
     "files": [
-      "src/main/**/*",
-      "src/preload/**/*",
-      "out/**/*"
+      "out/**/*",
+      "resources/**/*"
     ]
   }
 }
