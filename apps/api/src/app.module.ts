@@ -2,20 +2,26 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 
+import { AdminModule } from './admin/admin.module';
 import { AIOrchestrationModule } from './ai-orchestration/ai-orchestration.module';
 import { AuditLogModule } from './audit/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { CollaborativeModule } from './collaborative/collaborative.module';
 import { envSchema } from './config/env.schema';
 import { HealthModule } from './health/health.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { MatchingModule } from './matching/matching.module';
 import { RlsMiddlewareModule } from './middleware/rls.module';
+import { MusicMirrorModule } from './music-mirror/music-mirror.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PlaybackModule } from './playback/playback.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PrivacyModule } from './privacy/privacy.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { SearchModule } from './search/search.module';
 import { SettingsModule } from './settings/settings.module';
+import { SmartPlaylistsModule } from './smart-playlists/smart-playlists.module';
 import { SyncModule } from './sync/sync.module';
 import { VaultModule } from './vault/vault.module';
 
@@ -50,6 +56,14 @@ import { VaultModule } from './vault/vault.module';
     AIOrchestrationModule,
     RecommendationsModule,
     SearchModule,
+    // Phase 3: Privacy
+    PrivacyModule,
+    // Phase 4: Smart Playlists, Music Mirror, Collaborative, Admin, Notifications
+    SmartPlaylistsModule,
+    MusicMirrorModule,
+    CollaborativeModule,
+    AdminModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
