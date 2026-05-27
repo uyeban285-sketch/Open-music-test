@@ -1,0 +1,6 @@
+apiVersion: v2
+name: open-music
+description: Open Music — multi-source music aggregator with AI recommendations
+version: 0.1.0
+appVersion: "0.1.0"
+type: application

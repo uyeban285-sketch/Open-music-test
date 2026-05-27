@@ -1,0 +1,88 @@
+# Default values for Open Music Helm chart
+
+replicaCount:
+  api: 2
+  web: 2
+  worker: 1
+  embedding: 1
+  ranking: 1
+  profiler: 1
+
+image:
+  registry: ghcr.io
+  api: open-music/api
+  web: open-music/web
+  embedding: open-music/ai-embedding
+  ranking: open-music/ai-ranking
+  profiler: open-music/ai-profiler
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  api:
+    port: 4000
+    type: ClusterIP
+  web:
+    port: 3000
+    type: ClusterIP
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: music.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: web
+        - path: /api
+          pathType: Prefix
+          service: api
+
+resources:
+  api:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: 1000m, memory: 1Gi }
+  web:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  embedding:
+    requests: { cpu: 500m, memory: 2Gi }
+    limits: { cpu: 2000m, memory: 4Gi }
+  ranking:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: 2000m, memory: 2Gi }
+
+autoscaling:
+  enabled: true
+  api:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+  web:
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPU: 75
+
+postgresql:
+  enabled: true
+  auth:
+    database: openmusic
+    username: openmusic
+    existingSecret: open-music-db-secret
+
+redis:
+  enabled: true
+  architecture: standalone
+
+minio:
+  enabled: true
+  defaultBuckets: "covers,exports,backups"
+
+observability:
+  otel:
+    enabled: true
+    endpoint: http://otel-collector:4318
+  sentry:
+    enabled: true
+    dsnSecret: open-music-sentry-dsn

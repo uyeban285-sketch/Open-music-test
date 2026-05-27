@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app.kubernetes.io/name: open-music-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount.api }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: open-music-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: open-music-api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.registry }}/{{ .Values.image.api }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.service.api.port }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "{{ .Values.service.api.port }}"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: open-music-db-secret
+                  key: url
+            - name: REDIS_URL
+              value: redis://{{ .Release.Name }}-redis-master:6379
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: open-music-jwt-secret
+                  key: secret
+          resources:
+            {{- toYaml .Values.resources.api | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.api.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.service.api.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
