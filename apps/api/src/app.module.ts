@@ -23,6 +23,7 @@ import { SearchModule } from './search/search.module';
 import { SettingsModule } from './settings/settings.module';
 import { SmartPlaylistsModule } from './smart-playlists/smart-playlists.module';
 import { SyncModule } from './sync/sync.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { VaultModule } from './vault/vault.module';
 
 @Module({
@@ -64,6 +65,7 @@ import { VaultModule } from './vault/vault.module';
     CollaborativeModule,
     AdminModule,
     NotificationsModule,
+    TelemetryModule,
   ],
 })
 export class AppModule {}
