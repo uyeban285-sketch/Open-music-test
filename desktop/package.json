@@ -1,0 +1,78 @@
+{
+  "name": "open-music",
+  "version": "0.1.0",
+  "description": "Open Music — мультисервисный музыкальный агрегатор с AI-рекомендациями",
+  "main": "src/main/index.js",
+  "author": "Open Music Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-builder --win --x64",
+    "package:mac": "electron-builder --mac",
+    "package:linux": "electron-builder --linux",
+    "package:all": "electron-builder --win --mac --linux"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.0",
+    "@electron-toolkit/utils": "^3.0.0",
+    "better-sqlite3": "^11.0.0",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.1.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0",
+    "electron-vite": "^2.1.0",
+    "postcss": "^8.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.0",
+    "zustand": "^4.5.0"
+  },
+  "build": {
+    "appId": "com.openmusic.app",
+    "productName": "Open Music",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeaderIcon": "resources/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "resources/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "resources/icon.png"
+    },
+    "files": [
+      "src/main/**/*",
+      "src/preload/**/*",
+      "out/**/*"
+    ]
+  }
+}
